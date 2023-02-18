@@ -15,3 +15,5 @@ shutil
 glob
 re
 ```
+
+Note: This is only tested for Movies at the moment, but can easily be changed to support TV Shows too.
