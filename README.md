@@ -9,9 +9,9 @@ All of the parameters contain example directories etc. so that you can easily co
 I hope you find it as useful as I did!
 
 Note, this will require Python 3.0 to run, and will require the following modules to be installed (easily done via PIP):
-'''
+```
 os
 shutil
 glob
 re
-'''
+```
