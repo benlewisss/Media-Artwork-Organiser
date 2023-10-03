@@ -7,7 +7,6 @@ import difflib
 import pathlib
 import traceback
 import logging
-
 class MediaOrganiser:
     def __init__(self, artwork_type):
         """
@@ -16,6 +15,9 @@ class MediaOrganiser:
         Args:
             artwork_type (str): Can either be 'poster' or 'fanart, poster is the movie cover seen on the plex library screen, and 'fanart' is the
             background of the movie play screen.
+
+        Returns:
+            None
         """
         # Plex supported image formats
         self.extensions = ("*.jpg", "*.jpeg", "*.png", "*.tbn")
@@ -31,13 +33,27 @@ class MediaOrganiser:
 
     @staticmethod
     def clear_console():
-        """Clear the console screen."""
+        """
+        Clear the console screen.
+
+        Args:
+            None
+        
+        Returns:
+            None
+        """
         print("\033[H\033[J")
 
     @staticmethod
     def separator():
         """
         Print a separator line based on the terminal size.
+
+        Args:
+            None
+
+        Returns:
+            None
         """
         term_size = int(os.get_terminal_size()[0])
         print("-" * term_size)
@@ -51,7 +67,7 @@ class MediaOrganiser:
             default (str): The default answer ('yes' or 'no').
 
         Returns:
-            bool: True for 'yes', False for 'no'.
+            user_input (bool): True for 'yes', False for 'no'.
         """
         valid_input = {"yes": True, "y": True, "ye": True, "no": False, "n": False}
         if default is None:
@@ -82,7 +98,7 @@ class MediaOrganiser:
             input_type (str): Either "artwork" or "media".
 
         Returns:
-            str: The validated directory path.
+            directory_path (str): The validated directory path.
         """
         valid_input = False
         while not valid_input:
@@ -123,23 +139,21 @@ class MediaOrganiser:
             directory (str): The directory path to check.
 
         Returns:
-            str or None: The corrected directory path if found, otherwise None.
+            relative_path (str) or None: The corrected directory path if found, otherwise None.
         """
         dir_path = pathlib.Path(directory)
-        dir_parts = dir_path.parts
-        part_index = 1
-        rel_path = dir_parts[0]
-
         if os.path.exists(dir_path):
             return dir_path
 
-        while part_index < len(dir_parts):
+        rel_path = dir_path.parts[0]
+
+        for part_index in range(1, len(dir_path.parts)):
             minimum_match_ratio = 0.7
             best_match = ""
             rel_path_contents = os.listdir(rel_path)
 
             for file in rel_path_contents:
-                ratio = difflib.SequenceMatcher(None, file, dir_parts[part_index]).ratio()
+                ratio = difflib.SequenceMatcher(None, file, dir_path.parts[part_index]).ratio()
 
                 if ratio > minimum_match_ratio:
                     minimum_match_ratio = ratio
@@ -147,7 +161,6 @@ class MediaOrganiser:
 
             if best_match:
                 rel_path = os.path.join(rel_path, best_match)
-                part_index += 1
             else:
                 rel_path = None
                 break
@@ -157,57 +170,49 @@ class MediaOrganiser:
     def find_matching_artwork(self):
         """
         Find matching artwork for movie folders and copy them if necessary.
+
+        Args:
+            None
+
+        Returns:
+            None
         """
-        # Initialize lists of all supported artwork and movie folder paths
-        matching_artwork = []
-        matching_movies = []
-        # Initialize lists of formatted artwork file and movie folder names mapped to their paths
-        mapped_artwork = []
-        mapped_movies = []
-        # Append all supported artwork paths to a list
-        for ext in self.extensions:
-            matching_artwork.extend(glob.glob(os.path.join(self.art_dir, ext), recursive=True))
-        # Map the artwork paths to their formatted names
-        for src_file in matching_artwork:
-            form_src = re.sub("[-':;., ]", "", os.path.splitext(os.path.basename(os.path.normpath(src_file)))[0])
-            src_dict = {form_src: src_file}
-            mapped_artwork.append(src_dict)
-        # Append all movie folder paths to a list
-        matching_movies.extend(glob.glob(self.media_dir, recursive=True))
-        # Map the movie folder paths to their formatted names
-        for dst_file in matching_movies:
-            form_dst = re.sub("[-':;., ]", "", os.path.basename(os.path.normpath(dst_file)))
-            dst_dict = {form_dst: dst_file}
-            mapped_movies.append(dst_dict)
+        # Initialize lists of supported artwork and movie folders
+        matching_artwork = [file for ext in self.extensions for file in glob.glob(os.path.join(self.art_dir, ext), recursive=True)]
+        matching_movies = glob.glob(self.media_dir, recursive=True)
+        
+        # Map artwork paths to their formatted names
+        mapped_artwork = {re.sub("[-':;., ]", "", os.path.splitext(os.path.basename(os.path.normpath(src_file)))[0]): src_file for src_file in matching_artwork}
+        
+        # Map movie folder paths to their formatted names
+        mapped_movies = {re.sub("[-':;., ]", "", os.path.basename(os.path.normpath(dst_file))): dst_file for dst_file in matching_movies}
+        
         self.separator()
         print("SEARCHING")
         self.separator()
+        
         # Number of movie folders without artwork that are available in the art directory
         match_num = 0
-        # Loop through the list of mapped artwork and the list of mapped movie folders
-        for art in mapped_artwork:
-            for movie in mapped_movies:
-                # Loop through the keys of the list items to check for matches
-                for key in art:
-                    # If a corresponding movie folder and artwork are found, continue
-                    if key in movie:
-                        # Checks to see if a movie poster already exists; if so, skip
-                        if glob.glob(os.path.join(movie[key], f"{self.artwork_type}.*")):
-                            continue
-                        # If there is no existing movie poster and one is available, copy it from the source
-                        # directory to the corresponding move folder and provide a console output
-                        else:
-                            shutil.copy(art[key], os.path.join(movie[key], f"{self.artwork_type}{os.path.splitext(art[key])[1]}"))
-                            match_num += 1
-                            print("├◄◄ {}".format(art[key].replace("\\", "/")))
-                            print("│")
-                            print("└►► {}".format(os.path.join(movie[key], f"{self.artwork_type}{os.path.splitext(art[key])[1]}").replace("\\", "/")))
-                            self.separator()
-        # Displays the number of matches (the number of posters that have been moved)
+        
+        # Loop through the mapped artwork and movie folders
+        for art_key, art_value in mapped_artwork.items():
+            for movie_key, movie_value in mapped_movies.items():
+                if art_key == movie_key:
+                    # Check if a movie poster already exists; if so, skip
+                    if not glob.glob(os.path.join(movie_value, f"{self.artwork_type}.*")):
+                        shutil.copy(art_value, os.path.join(movie_value, f"{self.artwork_type}{os.path.splitext(art_value)[1]}"))
+                        match_num += 1
+                        print("├◄◄ {}".format(art_value.replace("\\", "/")))
+                        print("│")
+                        print("└►► {}".format(os.path.join(movie_value, f"{self.artwork_type}{os.path.splitext(art_value)[1]}").replace("\\", "/")))
+                        self.separator()
+        
+        # Display the number of matches (the number of posters that have been moved)
         if match_num == 0:
             print(f"NO NEW {self.artwork_type.upper()}S")
         else:
             print(f"{match_num} NEW {self.artwork_type.upper()}(S)")
+        
         self.separator()
 
 if __name__ == "__main__":
