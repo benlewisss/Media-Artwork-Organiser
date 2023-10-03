@@ -5,12 +5,16 @@ import re
 import sys
 import difflib
 import pathlib
+import traceback
+import logging
 
 class MediaOrganiser:
     def __init__(self, artwork_type):
         """
         Initialize the MediaOrganiser with the specified artwork type.
         """
+        # Plex supported image formats
+        self.extensions = ("*.jpg", "*.jpeg", "*.png", "*.tbn")
         self.artwork_type = artwork_type
         self.clear_console()
         self.art_dir = self.get_directory_input(self, "artwork")
@@ -150,8 +154,6 @@ class MediaOrganiser:
         """
         Find matching artwork for movie folders and copy them if necessary.
         """
-        # Plex supported image formats
-        extensions = ("*.jpg", "*.jpeg", "*.png", "*.tbn")
         # Initialize lists of all supported artwork and movie folder paths
         matching_artwork = []
         matching_movies = []
@@ -159,7 +161,7 @@ class MediaOrganiser:
         mapped_artwork = []
         mapped_movies = []
         # Append all supported artwork paths to a list
-        for ext in extensions:
+        for ext in self.extensions:
             matching_artwork.extend(glob.glob(os.path.join(self.art_dir, ext), recursive=True))
         # Map the artwork paths to their formatted names
         for src_file in matching_artwork:
@@ -205,5 +207,13 @@ class MediaOrganiser:
         self.separator()
 
 if __name__ == "__main__":
-    plex_library = MediaOrganiser(artwork_type="poster")
-    plex_library.find_matching_artwork()
+    try:
+        plex_library = MediaOrganiser(artwork_type="poster")
+        plex_library.find_matching_artwork()
+
+    except KeyboardInterrupt:
+        os.system("cls")
+        print("PROGRAM EXITED")
+    
+    except Exception as e:
+        logging.error(traceback.format_exc())
