@@ -12,6 +12,10 @@ class MediaOrganiser:
     def __init__(self, artwork_type):
         """
         Initialize the MediaOrganiser with the specified artwork type.
+
+        Args:
+            artwork_type (str): Can either be 'poster' or 'fanart, poster is the movie cover seen on the plex library screen, and 'fanart' is the
+            background of the movie play screen.
         """
         # Plex supported image formats
         self.extensions = ("*.jpg", "*.jpeg", "*.png", "*.tbn")
