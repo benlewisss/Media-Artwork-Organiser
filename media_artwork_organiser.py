@@ -1,5 +1,4 @@
 import os
-import shutil
 import glob
 import re
 import sys
@@ -24,7 +23,7 @@ class MediaOrganiser:
         self.artwork_type = artwork_type
         self.clear_console()
         self.art_dir = self.get_directory_input(self, "artwork")
-        self.media_dir = self.get_directory_input(self, "media")
+        self.media_dir = "C:/Users/benle/Desktop/PlexTest/Media" #self.get_directory_input(self, "media")
         self.clear_console()
         print("Artwork Directory:", self.art_dir)
         print("Media Directory:", self.media_dir)
@@ -142,30 +141,34 @@ class MediaOrganiser:
             relative_path (str) or None: The corrected directory path if found, otherwise None.
         """
         dir_path = pathlib.Path(directory)
+    
         if os.path.exists(dir_path):
-            return dir_path
+            return str(dir_path)
 
-        rel_path = dir_path.parts[0]
+        # Get the parent directory
+        parent_dir = dir_path.parent
+        dir_name = dir_path.name
 
-        for part_index in range(1, len(dir_path.parts)):
-            minimum_match_ratio = 0.7
-            best_match = ""
-            rel_path_contents = os.listdir(rel_path)
+        if not os.path.exists(parent_dir):
+            return None
 
-            for file in rel_path_contents:
-                ratio = difflib.SequenceMatcher(None, file, dir_path.parts[part_index]).ratio()
+        # List files in the parent directory
+        rel_path_contents = os.listdir(parent_dir)
 
-                if ratio > minimum_match_ratio:
-                    minimum_match_ratio = ratio
-                    best_match = file
+        best_match = None
+        max_ratio = 0.0
 
-            if best_match:
-                rel_path = os.path.join(rel_path, best_match)
-            else:
-                rel_path = None
-                break
+        for file in rel_path_contents:
+            ratio = difflib.SequenceMatcher(None, dir_name, file).ratio()
+            if ratio > max_ratio and ratio >= 0.7:
+                best_match = file
+                max_ratio = ratio
+        
+        if best_match:
+            corrected_path = os.path.join(parent_dir, best_match)
+            return str(corrected_path)
 
-        return rel_path
+        return None
 
     def find_matching_artwork(self):
         """
@@ -194,18 +197,31 @@ class MediaOrganiser:
         # Number of movie folders without artwork that are available in the art directory
         match_num = 0
         
+        print(mapped_artwork.items())
+        print("\n")
+        print(mapped_movies.items())
+        print("\n\n")
+
         # Loop through the mapped artwork and movie folders
         for art_key, art_value in mapped_artwork.items():
-            for movie_key, movie_value in mapped_movies.items():
-                if art_key == movie_key:
-                    # Check if a movie poster already exists; if so, skip
-                    if not glob.glob(os.path.join(movie_value, f"{self.artwork_type}.*")):
-                        shutil.copy(art_value, os.path.join(movie_value, f"{self.artwork_type}{os.path.splitext(art_value)[1]}"))
-                        match_num += 1
-                        print("├◄◄ {}".format(art_value.replace("\\", "/")))
-                        print("│")
-                        print("└►► {}".format(os.path.join(movie_value, f"{self.artwork_type}{os.path.splitext(art_value)[1]}").replace("\\", "/")))
-                        self.separator()
+            if art_key in mapped_movies:
+                movie_value = mapped_movies[art_key]
+                movie_poster_path = os.path.join(movie_value, f"{self.artwork_type}.*")
+
+                # Check if a movie poster already exists; if so, skip
+                if not glob.glob(movie_poster_path):
+                    match_num += 1
+                    art_value_unix = art_value.replace("\\", "/")
+                    movie_poster_path_unix = os.path.join(movie_value, f"{self.artwork_type}{os.path.splitext(art_value)[1]}").replace("\\", "/")
+
+                    # Copy artwork to the movie folder
+                    #shutil.copy(art_value, os.path.join(movie_value, movie_poster_path_unix))
+
+                    # Print messages and separators
+                    print("├◄◄ {}".format(art_value_unix))
+                    print("│")
+                    print("└►► {}".format(movie_poster_path_unix))
+                    self.separator()
         
         # Display the number of matches (the number of posters that have been moved)
         if match_num == 0:
